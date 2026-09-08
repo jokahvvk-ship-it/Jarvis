@@ -1,1 +1,4 @@
-import pyttsx3 engine = pyttsx3 engine.say("Hello, I am Jarvis") engine.runAndWait()
+importpyttsx3
+engine = pyttsx3.init()
+engine.say("Hello, I am Jarvis")
+engine.runAndWait()
