@@ -12,3 +12,9 @@ def speak(text):
 speak("Hello, I am Jarvis")
 
 print("Jarvis is ready.")
+text = input("Jarvis को command दो: ").lower()
+
+if "youtube" in text:
+    speak("YouTube खोल रहा हूँ.")
+else:
+    speak("Command समझ गया.")
