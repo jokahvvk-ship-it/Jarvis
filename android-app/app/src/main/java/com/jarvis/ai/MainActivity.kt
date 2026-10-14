@@ -1,139 +1,195 @@
 package com.jarvis.ai
 
 import android.Manifest
-import android.app.*
-import android.content.*
+import android.app.Activity
+import android.app.role.RoleManager
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.*
-import android.speech.*
-import android.speech.tts.TextToSpeech
-import android.widget.*
-import java.util.*
+import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
+import android.view.Gravity
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
 
-class MainActivity : Activity(), TextToSpeech.OnInitListener {
-    private lateinit var tts: TextToSpeech
-    private lateinit var status: TextView
+class MainActivity : Activity() {
+
+    companion object {
+        private const val RECORD_AUDIO_REQUEST = 100
+        private const val NOTIFICATION_REQUEST = 101
+        private const val ASSISTANT_ROLE_REQUEST = 102
+    }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
 
-        val box = LinearLayout(this)
-        box.orientation = LinearLayout.VERTICAL
-        box.setPadding(40,70,40,40)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(40, 70, 40, 40)
+        }
 
-        val title = TextView(this)
-        title.text = "🤖 Jarvis AI"
-        title.textSize = 30f
+        val title = TextView(this).apply {
+            text = "🤖 Jarvis AI"
+            textSize = 30f
+            gravity = Gravity.CENTER
+        }
 
-        status = TextView(this)
-        status.text = "Namaste! Mic dabao aur bolo."
-        status.textSize = 18f
-        status.setPadding(0,40,0,40)
+        val status = TextView(this).apply {
+            text =
+                "Hands-Free Jarvis\n\n" +
+                "Voice + screen control\n\n" +
+                "1. Microphone allow karo.\n" +
+                "2. Jarvis ko Assistant banao.\n" +
+                "3. Accessibility ON karo.\n\n" +
+                "Uske baad supported voice commands se screen actions test kar sakte ho."
+            textSize = 18f
+            setPadding(0, 40, 0, 40)
+        }
 
-        val mic = Button(this)
-        mic.text = "🎙️ Bolo"
-        mic.textSize = 20f
+        val permissionButton = Button(this).apply {
+            text = "Allow Permissions"
+            setOnClickListener {
+                requestRequiredPermissions()
+            }
+        }
+
+        val assistantButton = Button(this).apply {
+            text = "Choose Jarvis as Assistant"
+            setOnClickListener {
+                requestAssistantRole()
+            }
+        }
+
+        val accessibilityButton = Button(this).apply {
+            text = "Enable Screen Control"
+            setOnClickListener {
+                openAccessibilitySettings()
+            }
+        }
 
         box.addView(title)
         box.addView(status)
-        box.addView(mic)
+        box.addView(permissionButton)
+        box.addView(assistantButton)
+        box.addView(accessibilityButton)
+
         setContentView(box)
 
-        tts = TextToSpeech(this,this)
+        requestRequiredPermissions()
+    }
 
-        if (Build.VERSION.SDK_INT >= 23 &&
-            checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO),100)
+    private fun requestRequiredPermissions() {
+        if (
+            Build.VERSION.SDK_INT >= 23 &&
+            checkSelfPermission(
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.RECORD_AUDIO
+                ),
+                RECORD_AUDIO_REQUEST
+            )
+            return
         }
 
-        mic.setOnClickListener { listen() }
+        requestNotificationPermissionIfNeeded()
     }
 
-    override fun onInit(result: Int) {
-        if (result == TextToSpeech.SUCCESS) {
-            tts.language = Locale("hi","IN")
-        }
-    }
-
-    private fun speak(text:String) {
-        status.text = text
-        tts.speak(text,TextToSpeech.QUEUE_FLUSH,null,"jarvis")
-    }
-
-    private fun listen() {
-        val r = SpeechRecognizer.createSpeechRecognizer(this)
-        val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE,"hi-IN")
-
-        status.text = "🎧 Sun raha hoon..."
-
-        r.setRecognitionListener(object: RecognitionListener {
-            override fun onResults(b:Bundle) {
-                val text = b.getStringArrayList(
-                    SpeechRecognizer.RESULTS_RECOGNITION
-                )?.firstOrNull() ?: ""
-                r.destroy()
-                command(text.lowercase(Locale.getDefault()))
-            }
-            override fun onError(e:Int) {
-                r.destroy()
-                speak("Command samajh nahi aayi. Dobara bolo.")
-            }
-            override fun onReadyForSpeech(p:Bundle?){}
-            override fun onBeginningOfSpeech(){}
-            override fun onRmsChanged(v:Float){}
-            override fun onBufferReceived(b:ByteArray?){}
-            override fun onEndOfSpeech(){}
-            override fun onPartialResults(b:Bundle?){}
-            override fun onEvent(t:Int,b:Bundle?){}
-        })
-        r.startListening(i)
-    }
-
-    private fun command(c:String) {
-        when {
-            c.contains("youtube") -> {
-                speak("YouTube khol raha hoon.")
-                open("https://www.youtube.com")
-            }
-            c.contains("whatsapp") -> {
-                speak("WhatsApp khol raha hoon.")
-                packageManager.getLaunchIntentForPackage("com.whatsapp")?.let {
-                    startActivity(it)
-                } ?: speak("WhatsApp nahi mila.")
-            }
-            c.contains("google") || c.contains("search") -> {
-                speak("Google khol raha hoon.")
-                open("https://www.google.com")
-            }
-            c.contains("timer") -> {
-                speak("5 minute ka timer laga raha hoon.")
-                val i = Intent(AlarmClock.ACTION_SET_TIMER)
-                i.putExtra(AlarmClock.EXTRA_LENGTH,300)
-                i.putExtra(AlarmClock.EXTRA_SKIP_UI,false)
-                startActivity(i)
-            }
-            c.contains("setting") -> {
-                speak("Settings khol raha hoon.")
-                startActivity(Intent(android.provider.Settings.ACTION_SETTINGS))
-            }
-            c.contains("stop") || c.contains("band") -> speak("Theek hai.")
-            else -> speak("Maine suna: $c")
+    private fun requestNotificationPermissionIfNeeded() {
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.POST_NOTIFICATIONS
+                ),
+                NOTIFICATION_REQUEST
+            )
         }
     }
 
-    private fun open(url:String) {
-        startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))
+    private fun requestAssistantRole() {
+        if (Build.VERSION.SDK_INT >= 29) {
+
+            val roleManager =
+                getSystemService(RoleManager::class.java)
+
+            if (
+                roleManager != null &&
+                roleManager.isRoleAvailable(
+                    RoleManager.ROLE_ASSISTANT
+                )
+            ) {
+
+                if (
+                    roleManager.isRoleHeld(
+                        RoleManager.ROLE_ASSISTANT
+                    )
+                ) {
+                    return
+                }
+
+                startActivityForResult(
+                    roleManager.createRequestRoleIntent(
+                        RoleManager.ROLE_ASSISTANT
+                    ),
+                    ASSISTANT_ROLE_REQUEST
+                )
+
+                return
+            }
+        }
+
+        try {
+            startActivity(
+                Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
+            )
+        } catch (e: Exception) {
+            startActivity(
+                Intent(Settings.ACTION_SETTINGS)
+            )
+        }
     }
 
-    override fun onDestroy() {
-        if (::tts.isInitialized) {
-            tts.stop()
-            tts.shutdown()
+    private fun openAccessibilitySettings() {
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_ACCESSIBILITY_SETTINGS
+                )
+            )
+        } catch (e: Exception) {
+            startActivity(
+                Intent(Settings.ACTION_SETTINGS)
+            )
         }
-        super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+        )
+
+        if (
+            requestCode == RECORD_AUDIO_REQUEST &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotificationPermissionIfNeeded()
+        }
     }
 }

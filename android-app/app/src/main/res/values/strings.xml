@@ -1,1 +1,4 @@
-<resources><string name="app_name">Jarvis AI</string></resources>
+<resources>
+    <string name="app_name">Jarvis AI</string>
+    <string name="accessibility_description">Jarvis ko screen ki UI samajhne aur user ke voice command par permitted actions perform karne ki permission.</string>
+</resources>
