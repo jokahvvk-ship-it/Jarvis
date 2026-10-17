@@ -17,21 +17,15 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle 9.5.0
+      - name: Setup Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.5.0'
-
-      - name: Enable AndroidX
-        run: |
-          mkdir -p android-app
-          echo "android.useAndroidX=true" > android-app/gradle.properties
-          echo "android.enableJetifier=true" >> android-app/gradle.properties
+          gradle-version: '8.13'
 
       - name: Build APK
         working-directory: android-app
